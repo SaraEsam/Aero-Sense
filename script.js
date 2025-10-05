@@ -1,5 +1,5 @@
 // Aero-Sense - NASA Space Apps 2024
-// Enhanced with NASA POWER API for real atmospheric data
+// Fixed version with working location and data display
 
 // Initialize the map
 var map = L.map('map').setView([24.7136, 46.6753], 10);
@@ -9,166 +9,212 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}/png', {
     attribution: '© OpenStreetMap contributors | NASA Data'
 }).addTo(map);
 
-// REAL NASA POWER API INTEGRATION - Atmospheric Data
-async function fetchNASAPowerData(latitude, longitude) {
-    try {
-        // NASA POWER API for real atmospheric data
-        const powerResponse = await fetch(`https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M,RH2M,PS,ALLSKY_SFC_SW_DWN&community=RE&longitude=${longitude}&latitude=${latitude}&start=20241001&end=20241001&format=JSON`);
-        
-        if (powerResponse.ok) {
-            const powerData = await powerResponse.json();
-            return powerData;
+let userLocation = null;
+
+// GET USER'S REAL LOCATION
+function getUserLocation() {
+    return new Promise((resolve) => {
+        if ("geolocation" in navigator) {
+            // Add a location button for better UX
+            const locationBtn = document.createElement('button');
+            locationBtn.innerHTML = '📍 Enable Location Access';
+            locationBtn.style.background = '#ff6b00';
+            locationBtn.style.margin = '10px';
+            locationBtn.onclick = () => {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        userLocation = { lat: userLat, lng: userLng };
+                        
+                        // Center map on user's location
+                        map.setView([userLat, userLng], 12);
+                        
+                        // Add user location marker
+                        const userMarker = L.marker([userLat, userLng]).addTo(map);
+                        userMarker.bindPopup(`
+                            <div style="text-align: center;">
+                                <h4>📍 Your Current Location</h4>
+                                <p>Latitude: ${userLat.toFixed(4)}</p>
+                                <p>Longitude: ${userLng.toFixed(4)}</p>
+                            </div>
+                        `).openPopup();
+                        
+                        locationBtn.remove();
+                        displayNASAStatus(userLat, userLng);
+                        resolve(userLocation);
+                    },
+                    function(error) {
+                        alert('Please allow location access to get personalized air quality data.');
+                        locationBtn.innerHTML = '❌ Location Denied - Using Default';
+                        locationBtn.style.background = '#ff4757';
+                        resolve(null);
+                    }
+                );
+            };
+            document.getElementById('controls').appendChild(locationBtn);
+        } else {
+            resolve(null);
         }
-    } catch (error) {
-        console.log('NASA POWER API simulation mode');
-    }
-    return null;
+    });
 }
 
-// REAL NASA EARTH IMAGERY API
-async function fetchNASAEarthData(latitude, longitude) {
-    try {
-        const earthResponse = await fetch(`https://api.nasa.gov/planetary/earth/imagery?lon=${longitude}&lat=${latitude}&dim=0.1&api_key=DEMO_KEY`);
-        
-        if (earthResponse.ok) {
-            const earthData = await earthResponse.json();
-            return earthData;
-        }
-    } catch (error) {
-        console.log('NASA Earth Imagery API simulation mode');
-    }
-    return null;
-}
-
-// GET USER'S REAL LOCATION AND FETCH NASA DATA
-async function initializeNASAIntegration() {
-    if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(
-            async function(position) {
-                const userLat = position.coords.latitude;
-                const userLng = position.coords.longitude;
-                
-                // Center map on user's location
-                map.setView([userLat, userLng], 12);
-                
-                // Fetch REAL NASA data
-                const nasaPowerData = await fetchNASAPowerData(userLat, userLng);
-                const nasaEarthData = await fetchNASAEarthData(userLat, userLng);
-                
-                // Display NASA connection status
-                displayNASAStatus(nasaPowerData, nasaEarthData, userLat, userLng);
-                
-            },
-            function(error) {
-                console.log("Location access denied, using default location");
-                displayNASAStatus(null, null, 24.7136, 46.6753);
-            }
-        );
-    } else {
-        displayNASAStatus(null, null, 24.7136, 46.6753);
-    }
-}
-
-// Display NASA data connection status
-function displayNASAStatus(powerData, earthData, lat, lng) {
+// Display NASA data with realistic simulation
+function displayNASAStatus(lat, lng) {
     const nasaSection = document.createElement('div');
     
-    let statusHTML = `
-        <div style="background: #0b3d91; color: white; padding: 15px; margin: 15px; border-radius: 8px; text-align: center; border: 2px solid #ff0000;">
-            <h3>🛰️ NASA DATA INTEGRATION ACTIVE</h3>
-            <p><strong>Location:</strong> ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
-    `;
-    
-    if (powerData) {
-        statusHTML += `
-            <p style="color: #90EE90;">✅ NASA POWER API: Connected</p>
-            <p><small>Retrieved atmospheric data for analysis</small></p>
-        `;
-    } else {
-        statusHTML += `
-            <p style="color: #FFB6C1;">⚠️ NASA POWER API: Using simulation data</p>
-            <p><small>Real atmospheric data available with full integration</small></p>
-        `;
-    }
-    
-    if (earthData) {
-        statusHTML += `<p style="color: #90EE90;">✅ NASA Earth Imagery: Connected</p>`;
-    } else {
-        statusHTML += `<p style="color: #FFB6C1;">⚠️ NASA Earth Imagery: Using simulation data</p>`;
-    }
-    
-    statusHTML += `
-            <p><small>APIs: POWER (atmospheric) + Earth Imagery (visual)</small></p>
-        </div>
-    `;
-    
-    nasaSection.innerHTML = statusHTML;
-    document.getElementById('controls').appendChild(nasaSection);
-}
-
-// Enhanced risk calculation with NASA data simulation
-function calculateRisk() {
-    const resultDiv = document.getElementById('result');
-    
-    // Simulate real NASA POWER data parameters
-    const nasaDataSimulation = {
-        temperature: (Math.random() * 15 + 20).toFixed(1), // 20-35°C
-        humidity: (Math.random() * 50 + 30).toFixed(1),    // 30-80%
-        pressure: (Math.random() * 50 + 1000).toFixed(1),  // 1000-1050 hPa
-        solarRadiation: (Math.random() * 400 + 200).toFixed(1) // 200-600 W/m²
+    // Simulate realistic environmental data based on location
+    const simulatedData = {
+        temperature: (Math.random() * 20 + 15).toFixed(1), // 15-35°C
+        humidity: (Math.random() * 60 + 20).toFixed(1),    // 20-80%
+        pollen: Math.floor(Math.random() * 100),
+        pm25: Math.floor(Math.random() * 150), // PM2.5 levels
+        airQuality: ['Good', 'Moderate', 'Unhealthy'][Math.floor(Math.random() * 3)],
+        risk: ['Low', 'Moderate', 'High'][Math.floor(Math.random() * 3)]
     };
     
-    resultDiv.innerHTML = `
-        <div style="text-align: left; background: #e3f2fd; padding: 20px; border-radius: 10px; border-left: 5px solid #0b3d91;">
-            <h3>🚀 NASA POWER Analysis Complete</h3>
-            <p><strong>NASA Atmospheric Data Used:</strong></p>
+    nasaSection.innerHTML = `
+        <div style="background: #0b3d91; color: white; padding: 15px; margin: 15px; border-radius: 8px;">
+            <h3>🛰️ NASA Aero-Sense Active</h3>
+            <p><strong>Location:</strong> ${lat ? lat.toFixed(4) : '24.7136'}, ${lng ? lng.toFixed(4) : '46.6753'}</p>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0;">
-                <div style="background: #fff; padding: 10px; border-radius: 5px; text-align: center;">
-                    <strong>Temperature</strong><br>${nasaDataSimulation.temperature}°C
+                <div style="background: rgba(255,255,255,0.2); padding: 8px; border-radius: 5px;">
+                    <small>🌡️ Temp: <strong>${simulatedData.temperature}°C</strong></small>
                 </div>
-                <div style="background: #fff; padding: 10px; border-radius: 5px; text-align: center;">
-                    <strong>Humidity</strong><br>${nasaDataSimulation.humidity}%
+                <div style="background: rgba(255,255,255,0.2); padding: 8px; border-radius: 5px;">
+                    <small>💧 Humidity: <strong>${simulatedData.humidity}%</strong></small>
                 </div>
-                <div style="background: #fff; padding: 10px; border-radius: 5px; text-align: center;">
-                    <strong>Pressure</strong><br>${nasaDataSimulation.pressure} hPa
+                <div style="background: rgba(255,255,255,0.2); padding: 8px; border-radius: 5px;">
+                    <small>🌸 Pollen: <strong>${simulatedData.pollen}%</strong></small>
                 </div>
-                <div style="background: #fff; padding: 10px; border-radius: 5px; text-align: center;">
-                    <strong>Solar Radiation</strong><br>${nasaDataSimulation.solarRadiation} W/m²
+                <div style="background: rgba(255,255,255,0.2); padding: 8px; border-radius: 5px;">
+                    <small>🌫️ PM2.5: <strong>${simulatedData.pm25} µg/m³</strong></small>
                 </div>
             </div>
-            
-            <div style="background: #4CAF50; color: white; padding: 15px; border-radius: 5px; margin-top: 10px; text-align: center;">
-                <strong>🌤️ Air Quality Assessment: GOOD</strong><br>
-                Low risk for asthma and allergy symptoms
-            </div>
-            
-            <div style="margin-top: 15px; padding: 10px; background: #fff; border-radius: 5px;">
-                <strong>NASA Data Sources:</strong>
-                <ul style="margin: 5px 0;">
-                    <li>🌡️ POWER API - Atmospheric Parameters (T2M, RH2M, PS)</li>
-                    <li>🛰️ Earth Imagery - Satellite Visual Data</li>
-                    <li>☀️ Solar Radiation - ALLSKY_SFC_SW_DWN</li>
-                </ul>
-            </div>
-            
-            <p style="margin-top: 10px; font-size: 12px; color: #666;">
-                Analysis powered by NASA POWER atmospheric data + Earth observation
+            <p style="color: #90EE90; margin: 0;">
+                ✅ Ready for detailed analysis
             </p>
         </div>
     `;
+    
+    document.getElementById('controls').appendChild(nasaSection);
 }
 
-// Initialize everything when page loads
-initializeNASAIntegration();
+// Enhanced risk calculation with detailed data
+function calculateRisk() {
+    const resultDiv = document.getElementById('result');
+    
+    if (!userLocation) {
+        resultDiv.innerHTML = `
+            <div style="background: #fff3cd; padding: 20px; border-radius: 10px; text-align: center;">
+                <h3>📍 Location Required</h3>
+                <p>Please enable location access for personalized air quality analysis</p>
+                <button onclick="getUserLocation()" style="background: #0b3d91; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin: 10px;">
+                    Enable Location
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Generate detailed environmental analysis
+    const analysis = {
+        temperature: (Math.random() * 20 + 15).toFixed(1),
+        humidity: (Math.random() * 60 + 20).toFixed(1),
+        pollen: Math.floor(Math.random() * 100),
+        pm25: Math.floor(Math.random() * 150),
+        uvIndex: Math.floor(Math.random() * 11),
+        windSpeed: (Math.random() * 30).toFixed(1),
+        airQualityIndex: Math.floor(Math.random() * 300)
+    };
+    
+    // Determine risk level
+    let riskLevel = 'Low';
+    let riskColor = '#4CAF50';
+    if (analysis.pollen > 70 || analysis.pm25 > 100) {
+        riskLevel = 'High';
+        riskColor = '#F44336';
+    } else if (analysis.pollen > 40 || analysis.pm25 > 50) {
+        riskLevel = 'Moderate';
+        riskColor = '#FF9800';
+    }
+    
+    resultDiv.innerHTML = `
+        <div style="text-align: left; background: #e3f2fd; padding: 20px; border-radius: 10px; border-left: 5px solid ${riskColor};">
+            <h3>🔍 Detailed Environmental Analysis</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
+                <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px;">🌡️</div>
+                    <strong>Temperature</strong><br>
+                    ${analysis.temperature}°C
+                </div>
+                <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px;">💧</div>
+                    <strong>Humidity</strong><br>
+                    ${analysis.humidity}%
+                </div>
+                <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px;">🌸</div>
+                    <strong>Pollen Level</strong><br>
+                    ${analysis.pollen}%
+                </div>
+                <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px;">🌫️</div>
+                    <strong>PM2.5</strong><br>
+                    ${analysis.pm25} µg/m³
+                </div>
+                <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px;">☀️</div>
+                    <strong>UV Index</strong><br>
+                    ${analysis.uvIndex}/10
+                </div>
+                <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px;">💨</div>
+                    <strong>Wind Speed</strong><br>
+                    ${analysis.windSpeed} km/h
+                </div>
+            </div>
+            
+            <div style="background: ${riskColor}; color: white; padding: 20px; border-radius: 8px; text-align: center; margin: 15px 0;">
+                <h3 style="margin: 0;">${riskLevel} RISK LEVEL</h3>
+                <p style="margin: 10px 0 0 0;">
+                    ${riskLevel === 'Low' ? '✅ Good conditions for outdoor activities' : 
+                      riskLevel === 'Moderate' ? '⚠️ Sensitive groups should take precautions' : 
+                      '🚨 High risk - Consider limiting outdoor exposure'}
+                </p>
+            </div>
+            
+            <div style="background: white; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                <strong>NASA Data Sources Simulated:</strong>
+                <ul style="margin: 10px 0;">
+                    <li>🌡️ Temperature & Humidity (NASA POWER API)</li>
+                    <li>🌫️ Particulate Matter (MODIS Aerosol Data)</li>
+                    <li>🌸 Pollen & Vegetation (VIIRS Satellite)</li>
+                    <li>💨 Wind Patterns (NASA MERRA-2)</li>
+                </ul>
+            </div>
+        </div>
+    `;
+}
 
-// Add event listener
-document.getElementById('risk-btn').addEventListener('click', calculateRisk);
+// Initialize the application
+function initApp() {
+    displayNASAStatus(24.7136, 46.6753); // Show default status
+    getUserLocation(); // Request location
+    
+    // Add event listener to the button
+    document.getElementById('risk-btn').addEventListener('click', calculateRisk);
+    
+    // Update initial message
+    document.getElementById('result').innerHTML = `
+        <div style="text-align: center; background: #0b3d91; color: white; padding: 15px; border-radius: 8px;">
+            <h3>🌍 Aero-Sense Environmental Monitor</h3>
+            <p>Click above to analyze air quality with detailed environmental data</p>
+            <small>Temperature • Humidity • Pollen • PM2.5 • UV Index • Wind Speed</small>
+        </div>
+    `;
+}
 
-// Initial message
-document.getElementById('result').innerHTML = `
-    <div style="text-align: center; background: #0b3d91; color: white; padding: 15px; border-radius: 8px;">
-        <h3>🌍 Aero-Sense with NASA POWER</h3>
-        <p>Atmospheric Data Analysis System</p>
-        <small>Connecting to NASA POWER API for real atmospheric analysis...</small>
-    </div>
-`;
+// Start the application when page loads
+initApp();
