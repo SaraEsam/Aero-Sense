@@ -1,22 +1,33 @@
-// Aero-Sense - NASA Space Apps 2024
-// Enhanced version with real NASA data integration
-
-// Initialize the map
+// Aero-Sense - With Real NASA Satellite Layer
 var map = L.map('map').setView([24.7136, 46.6753], 10);
 
-// Add base map
+// Add OpenStreetMap base layer
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors | NASA Data'
+    attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
-// Sample sensor locations with mock NASA data
+// ADD REAL NASA SATELLITE IMAGERY
+var nasaLayer = L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{time}/{tileMatrixSet}/{z}/{y}/{x}.jpg', {
+    attribution: 'NASA GIBS',
+    tileMatrixSet: 'GoogleMapsCompatible_Level',
+    time: '2024-10-10', // You can update this date
+    tileSize: 256,
+    maxZoom: 9
+});
+
+// Add layer control so users can toggle NASA view
+L.control.layers({
+    "Street Map": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}/png'),
+    "NASA Satellite": nasaLayer
+}).addTo(map);
+
+// Rest of your existing simulation code...
 const sensorLocations = [
     { lat: 24.7136, lng: 46.6753, name: "Central District", pollen: 45, pm25: 32 },
     { lat: 24.7236, lng: 46.6853, name: "North Area", pollen: 75, pm25: 48 },
     { lat: 24.7036, lng: 46.6653, name: "South Park", pollen: 25, pm25: 18 }
 ];
 
-// Add sensors to map
 sensorLocations.forEach(sensor => {
     const riskLevel = calculateRiskLevel(sensor.pollen, sensor.pm25);
     const color = getRiskColor(riskLevel);
@@ -34,22 +45,13 @@ sensorLocations.forEach(sensor => {
     `);
 });
 
-// Enhanced risk calculation
 function calculateRisk() {
     const resultDiv = document.getElementById('result');
-    
-    // Simulate NASA data processing
     resultDiv.innerHTML = `
         <div style="text-align: left; background: #e3f2fd; padding: 20px; border-radius: 10px; border-left: 5px solid #0b3d91;">
             <h3>🚀 Aero-Sense Analysis Complete</h3>
             <p><strong>Data Sources:</strong> NASA Terra/Aqua Satellites (MODIS/VIIRS)</p>
-            <p><strong>Parameters Analyzed:</strong></p>
-            <ul>
-                <li>Aerosol Optical Depth (AOD)</li>
-                <li>Vegetation Indices (NDVI)</li>
-                <li>Particulate Matter (PM2.5)</li>
-                <li>Weather Patterns</li>
-            </ul>
+            <p><strong>Real NASA Satellite View Available!</strong> Toggle layers in top-right corner</p>
             <div style="background: #4CAF50; color: white; padding: 10px; border-radius: 5px; margin-top: 10px;">
                 <strong>Recommendation:</strong> Air quality is generally good. Perfect for outdoor activities!
             </div>
@@ -73,12 +75,10 @@ function getRiskColor(risk) {
     }
 }
 
-// Add event listener
 document.getElementById('risk-btn').addEventListener('click', calculateRisk);
 
-// Initial message
 document.getElementById('result').innerHTML = `
     <p style="color: #0b3d91; font-weight: bold;">
-        🌍 Welcome to Aero-Sense! Click above to analyze air quality using NASA satellite data.
+        🌍 Welcome to Aero-Sense! Toggle between Street Map and NASA Satellite view!
     </p>
 `;
